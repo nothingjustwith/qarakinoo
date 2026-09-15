@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QaraKino - Онлайн Кинокаталог</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            black: '#0a0a0a',
+                            card: '#121212',
+                            border: '#262626',
+                            accent: '#ffffff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #f5f5f5;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.15); }
+            50% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.35); }
+        }
+        .animate-glow {
+            animation: pulse-glow 3s infinite;
+        }
+        @keyframes card-appear {
+            0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-new-card {
+            animation: card-appear 0.5s ease-out forwards;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        }
+        input[type=range] {
+            accent-color: #ffffff;
+        }
+        .star-rating i {
+            cursor: pointer;
+            transition: color 0.15s ease-in-out, transform 0.15s ease-in-out;
+        }
+        .star-rating i:hover {
+            transform: scale(1.2);
+        }
+        #heroSection {
+            transition: opacity 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-brand-black text-neutral-100 min-h-screen flex flex-col selection:bg-white selection:text-black">
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-40 bg-brand-black/90 backdrop-blur-md border-b border-brand-border transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <a href="#catalog" class="flex items-center gap-2 text-2xl font-black tracking-wider uppercase text-white hover:opacity-80 transition-opacity">
+                <span class="bg-white text-black px-2 py-0.5 rounded font-extrabold">QARA</span>KINO
+            </a>
+
+            <!-- Search input -->
+            <div id="searchBarContainer" class="flex-1 max-w-md relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+                <input id="searchInput" type="text" oninput="onSearchInput(this.value)" placeholder="Поиск фильма или жанра..." 
+                       class="w-full bg-neutral-900/80 text-white text-sm pl-9 pr-4 py-2 rounded-full border border-neutral-800 focus:outline-none focus:border-white transition-colors placeholder:text-neutral-500">
+            </div>
+
+            <!-- Header Action Buttons -->
+            <div class="flex items-center gap-2">
+                <!-- Watchlist Button -->
+                <button onclick="filterByFavorites()" id="favToggleBtn" class="px-3.5 py-1.5 rounded-full text-xs font-semibold border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-white hover:border-neutral-700 flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-bookmark text-amber-400"></i>
+                    <span class="hidden sm:inline">Избранное</span>
+                    <span id="favCountBadge" class="bg-neutral-800 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CATALOG PAGE CONTAINER (#catalogView) -->
+    <main id="catalogView" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+        
+        <!-- Hero Spotlight Banner -->
+        <section id="heroSection" class="relative rounded-2xl overflow-hidden bg-neutral-900 border border-brand-border min-h-[320px] sm:min-h-[400px] flex items-end opacity-100">
+            <div id="heroBg" class="absolute inset-0 bg-cover bg-center transition-all duration-700 filter brightness-75"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/60 to-transparent"></div>
+            
+            <div class="relative z-10 p-6 sm:p-8 max-w-2xl space-y-3">
+                <div class="flex items-center gap-2 text-xs font-semibold text-neutral-400">
+                    <span id="heroGenreBadge" class="bg-white/10 px-2.5 py-1 rounded-md text-white backdrop-blur-sm border border-white/10">Загрузка...</span>
+                    <span>•</span>
+                    <span id="heroQualityBadge" class="text-neutral-300 font-mono">1080p</span>
+                    <span>•</span>
+                    <div id="heroRatingBadge" class="flex items-center gap-1 text-amber-400 font-mono font-bold bg-black/50 px-2 py-0.5 rounded border border-amber-400/30">
+                        <i class="fa-solid fa-star text-xs"></i>
+                        <span id="heroRatingValue">5.0</span>
+                    </div>
+                </div>
+                <h1 id="heroTitle" class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight line-clamp-2">QaraKino Каталог</h1>
+                <p id="heroDesc" class="text-neutral-300 text-sm sm:text-base line-clamp-3 font-light">Выберите фильм для быстрого просмотра высочайшего качества...</p>
+                
+                <div class="pt-2 flex items-center gap-3">
+                    <button id="heroPlayBtn" onclick="playCurrentHero()" class="px-6 py-2.5 bg-white text-black hover:bg-neutral-200 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 shadow-lg">
+                        <i class="fa-solid fa-play text-xs"></i> Смотреть
+                    </button>
+                    <button id="heroDetailsBtn" onclick="openHeroDetails()" class="px-4 py-2.5 bg-neutral-800/80 hover:bg-neutral-700 text-white rounded-xl font-semibold text-sm backdrop-blur-md border border-neutral-700 transition-colors">
+                        <i class="fa-solid fa-circle-info"></i> О фильме
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter Tabs & Movies Header -->
+        <section class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-3">
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <button onclick="setFilter('all')" id="filterBtnAll" class="filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-black transition-all whitespace-nowrap">
+                        Все фильмы
+                    </button>
+                    <button onclick="setFilter('available')" id="filterBtnAvail" class="filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800 transition-all whitespace-nowrap">
+                        Доступные онлайн
+                    </button>
+                    <button onclick="setFilter('favorites')" id="filterBtnFav" class="filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800 transition-all whitespace-nowrap">
+                        Мое Избранное
+                    </button>
+                </div>
+                <div class="text-xs text-neutral-400 font-mono flex items-center gap-3">
+                    <span>Всего: <strong id="totalMoviesCount" class="text-white">0</strong></span>
+                </div>
+            </div>
+
+            <!-- Movies Grid Container -->
+            <div id="moviesGrid" class="flex overflow-x-auto snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4 md:pb-0 no-scrollbar">
+                <!-- Cards populated dynamically -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-16 space-y-3">
+                <div class="w-16 h-16 mx-auto rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-500 text-2xl">
+                    <i class="fa-solid fa-film"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Фильмы не найдены</h3>
+                <p class="text-neutral-400 text-xs max-w-sm mx-auto">Попробуйте изменить поисковый запрос или выбрать другой фильтр категорий.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- PLAYER PAGE CONTAINER (#playerView) -->
+    <main id="playerView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6">
+        <!-- Top Back Bar -->
+        <div class="flex items-center justify-between border-b border-brand-border pb-3">
+            <a href="#catalog" class="inline-flex items-center gap-2 text-neutral-300 hover:text-white transition-colors text-sm font-semibold group">
+                <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i>
+                <span>Назад в каталог</span>
+            </a>
+            <span id="playerPageMovieTitle" class="text-sm font-bold text-neutral-400 truncate max-w-xs sm:max-w-md">Название</span>
+        </div>
+
+        <!-- Custom Video Player Section -->
+        <div class="relative bg-black rounded-2xl overflow-hidden border border-neutral-800 shadow-2xl group">
+            
+            <div id="customVideoContainer" class="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden select-none">
+                <video id="html5Video" class="w-full h-full object-contain cursor-pointer" playsinline></video>
+                
+                <div id="speed2xBadge" class="hidden absolute top-6 right-6 bg-white/20 backdrop-blur-md text-white font-mono font-black text-xs px-3 py-1.5 rounded-full border border-white/30 flex items-center gap-1.5 animate-pulse">
+                    <i class="fa-solid fa-bolt text-amber-400"></i> 2X УСКОРЕНИЕ
+                </div>
+
+                <div id="rightSideHoldZone" class="absolute right-0 top-0 w-1/2 h-full z-10 opacity-0 cursor-pointer"></div>
+
+                <div id="customPlayerControls" class="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 transition-opacity duration-300 opacity-100 group-hover:opacity-100">
+                    <div class="relative w-full h-2 mb-3 cursor-pointer flex items-center group/timeline" id="timelineContainer">
+                        <input id="seekBar" type="range" min="0" max="100" value="0" step="0.1" 
+                               class="w-full h-1 bg-white/30 group-hover/timeline:h-2 rounded-lg appearance-none cursor-pointer transition-all">
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <div class="flex items-center gap-3">
+                            <button id="playPauseBtn" onclick="togglePlayPause()" class="text-white hover:text-neutral-300 transition-colors">
+                                <i id="playIcon" class="fa-solid fa-play text-base"></i>
+                            </button>
+
+                            <button onclick="skipTime(-10)" title="-10 сек" class="text-neutral-300 hover:text-white transition-colors">
+                                <i class="fa-solid fa-rotate-left text-xs"></i>
+                            </button>
+                            <button onclick="skipTime(10)" title="+10 сек" class="text-neutral-300 hover:text-white transition-colors">
+                                <i class="fa-solid fa-rotate-right text-xs"></i>
+                            </button>
+
+                            <div class="flex items-center gap-1.5 group/vol">
+                                <button id="muteBtn" onclick="toggleMute()" class="text-neutral-300 hover:text-white transition-colors">
+                                    <i id="volumeIcon" class="fa-solid fa-volume-high text-xs"></i>
+                                </button>
+                                <input id="volumeSlider" type="range" min="0" max="1" step="0.05" value="1" 
+                                       class="w-14 sm:w-20 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer">
+                            </div>
+
+                            <span id="timeDisplay" class="font-mono text-[11px] text-neutral-300">00:00 / 00:00</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 sm:gap-4">
+                            <div class="relative">
+                                <button id="qualityMenuBtn" onclick="toggleQualityMenu(event)" class="text-neutral-300 hover:text-white transition-colors flex items-center gap-1.5 px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-mono font-bold border border-white/10">
+                                    <span id="currentQualityBadge">1080p</span>
+                                    <i class="fa-solid fa-gear text-[10px] text-neutral-400"></i>
+                                </button>
+                                
+                                <div id="qualityDropdown" class="hidden absolute bottom-full right-0 mb-2 bg-neutral-900/95 backdrop-blur-xl border border-white/20 rounded-xl p-1.5 shadow-2xl flex-col gap-1 min-w-[110px] z-50">
+                                    <div class="px-2 py-1 text-[9px] font-mono text-neutral-400 uppercase tracking-wider">Качество</div>
+                                    <button onclick="changeVideoQuality('1080')" class="quality-opt-btn w-full px-2.5 py-1.5 text-[11px] text-left hover:bg-white/20 rounded-lg text-white font-mono font-semibold flex items-center justify-between transition-colors">
+                                        <span>1080p</span>
+                                        <i id="check1080" class="fa-solid fa-check text-[10px] text-amber-400"></i>
+                                    </button>
+                                    <button onclick="changeVideoQuality('720')" class="quality-opt-btn w-full px-2.5 py-1.5 text-[11px] text-left hover:bg-white/20 rounded-lg text-white font-mono font-semibold flex items-center justify-between transition-colors">
+                                        <span>720p</span>
+                                        <i id="check720" class="fa-solid fa-check text-[10px] text-amber-400 hidden"></i>
+                                    </button>
+                                    <button onclick="changeVideoQuality('480')" class="quality-opt-btn w-full px-2.5 py-1.5 text-[11px] text-left hover:bg-white/20 rounded-lg text-white font-mono font-semibold flex items-center justify-between transition-colors">
+                                        <span>480p</span>
+                                        <i id="check480" class="fa-solid fa-check text-[10px] text-amber-400 hidden"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <select id="speedSelect" onchange="changePlaybackSpeed(this.value)" class="bg-white/10 text-white text-xs font-mono font-bold rounded-lg px-2 py-1 border border-white/10 focus:outline-none cursor-pointer">
+                                <option value="0.5" class="bg-neutral-900">0.5x</option>
+                                <option value="1.0" class="bg-neutral-900" selected>1.0x</option>
+                                <option value="1.25" class="bg-neutral-900">1.25x</option>
+                                <option value="1.5" class="bg-neutral-900">1.5x</option>
+                                <option value="2.0" class="bg-neutral-900">2.0x</option>
+                            </select>
+
+                            <button id="fullscreenBtn" onclick="toggleCustomFullscreen()" class="text-neutral-400 hover:text-white transition-colors">
+                                <i class="fa-solid fa-expand text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <iframe id="videoIframe" class="hidden aspect-video w-full h-full border-0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+
+            <div id="externalPlayerNotice" class="hidden p-8 text-center bg-neutral-900 space-y-3">
+                <i class="fa-solid fa-arrow-up-right-from-square text-3xl text-neutral-500"></i>
+                <h3 class="text-base font-bold text-white">Плеер откроется на внешнем сайте</h3>
+                <p class="text-xs text-neutral-400 max-w-md mx-auto">Данное видео загружается со стороннего видеохостинга.</p>
+                <a id="externalPlayerBtn" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-neutral-200 transition-colors">
+                    <span>Перейти к просмотру</span>
+                    <i class="fa-solid fa-external-link"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Movie Details Meta Info -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-brand-card p-6 rounded-2xl border border-brand-border">
+            <div class="md:col-span-2 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 id="playerMovieName" class="text-2xl font-black text-white">Загрузка названия...</h2>
+                    
+                    <div class="flex items-center gap-3 bg-neutral-900 px-3 py-1.5 rounded-xl border border-neutral-800">
+                        <div class="text-right">
+                            <div class="text-[10px] text-neutral-400 uppercase font-mono tracking-wider">Средняя оценка</div>
+                            <div class="flex items-center gap-1 font-mono font-bold text-amber-400 text-sm">
+                                <i class="fa-solid fa-star"></i>
+                                <span id="playerAvgRating">5.0</span>
+                                <span class="text-neutral-500 text-xs font-normal">(<span id="playerRatingCount">0</span> отзывов)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="playerMovieDescription" class="text-neutral-300 text-sm leading-relaxed font-light">Описание фильма...</p>
+                
+                <div class="pt-2 flex items-center gap-3 bg-neutral-900/50 p-3 rounded-xl border border-neutral-800/80">
+                    <span class="text-xs font-semibold text-neutral-300">Ваша быстро-оценка:</span>
+                    <div id="userStarPicker" class="star-rating flex items-center gap-1 text-neutral-600 text-base">
+                        <i class="fa-solid fa-star hover:text-amber-400" onclick="rateMovie(1)"></i>
+                        <i class="fa-solid fa-star hover:text-amber-400" onclick="rateMovie(2)"></i>
+                        <i class="fa-solid fa-star hover:text-amber-400" onclick="rateMovie(3)"></i>
+                        <i class="fa-solid fa-star hover:text-amber-400" onclick="rateMovie(4)"></i>
+                        <i class="fa-solid fa-star hover:text-amber-400" onclick="rateMovie(5)"></i>
+                    </div>
+                    <span id="userRatingStatus" class="text-[11px] text-amber-400 font-mono font-semibold"></span>
+                </div>
+            </div>
+
+            <div class="space-y-3 border-t md:border-t-0 md:border-l border-brand-border pt-4 md:pt-0 md:pl-6 text-xs">
+                <div class="flex justify-between border-b border-brand-border pb-2">
+                    <span class="text-neutral-500">Жанр:</span>
+                    <span id="playerMovieGenreText" class="text-white font-mono font-bold">Не указан</span>
+                </div>
+                <div class="flex justify-between border-b border-brand-border pb-2">
+                    <span class="text-neutral-500">Качество:</span>
+                    <span id="playerMovieQualityText" class="text-white font-mono font-bold">1080p Full HD</span>
+                </div>
+                <div class="flex justify-between border-b border-brand-border pb-2">
+                    <span class="text-neutral-500">ID фильма:</span>
+                    <span id="playerMovieIdText" class="text-white font-mono text-amber-400 font-bold">#0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Movie Comments & Reviews Section -->
+        <section class="bg-brand-card p-6 rounded-2xl border border-brand-border space-y-6">
+            <div class="flex items-center justify-between border-b border-neutral-800 pb-4">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-comments text-amber-400"></i>
+                        <span>Отзывы и комментарии</span>
+                    </h3>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="refreshCurrentComments()" title="Обновить список комментариев" class="text-xs text-neutral-400 hover:text-white px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 transition-colors">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                    <span id="commentsCountBadge" class="bg-neutral-800 text-neutral-300 text-xs px-2.5 py-1 rounded-full font-mono">0</span>
+                </div>
+            </div>
+
+            <!-- Comment Input Form -->
+            <form onsubmit="handleCommentSubmit(event)" class="space-y-4 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 mb-1">Ваше имя</label>
+                        <input id="commentAuthor" type="text" required placeholder="Введите ваше имя..." 
+                               class="w-full bg-neutral-900 text-white text-xs px-3.5 py-2.5 rounded-lg border border-neutral-700 focus:outline-none focus:border-white transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-neutral-400 mb-1">Оценка фильму</label>
+                        <select id="commentRating" class="w-full bg-neutral-900 text-amber-400 font-mono text-xs px-3.5 py-2.5 rounded-lg border border-neutral-700 focus:outline-none focus:border-white cursor-pointer">
+                            <option value="5">★★★★★ (5/5) Превосходно</option>
+                            <option value="4">★★★★☆ (4/5) Хорошо</option>
+                            <option value="3">★★★☆☆ (3/5) Нормально</option>
+                            <option value="2">★★☆☆☆ (2/5) Плохо</option>
+                            <option value="1">★☆☆☆☆ (1/5) Ужасно</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-neutral-400 mb-1">Комментарий</label>
+                    <textarea id="commentText" required rows="3" placeholder="Поделитесь вашим мнением о фильме..." 
+                              class="w-full bg-neutral-900 text-white text-xs p-3.5 rounded-lg border border-neutral-700 focus:outline-none focus:border-white transition-colors resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <span id="submitStatusText" class="text-xs text-neutral-400 font-mono"></span>
+                    <button type="submit" id="submitCommentBtn" class="px-5 py-2 bg-white text-black hover:bg-neutral-200 rounded-xl text-xs font-bold transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50">
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                        <span>Отправить</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Comments List -->
+            <div id="commentsList" class="space-y-4">
+                <!-- Comments rendered here -->
+            </div>
+        </section>
+
+        <!-- Similar Movies & Recommendations Section -->
+        <section id="similarMoviesSection" class="space-y-4 pt-4 border-t border-neutral-800">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                    <span>Похожие фильмы и рекомендации</span>
+                </h3>
+            </div>
+            
+            <div id="similarMoviesGrid" class="flex overflow-x-auto snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4 md:pb-0 no-scrollbar">
+                <!-- Similar movies -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-neutral-900 border border-neutral-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs">
+        <i class="fa-solid fa-bell text-amber-400"></i>
+        <span id="toastText">Уведомление</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-brand-border py-6 text-center text-xs text-neutral-500">
+        <p>© 2026 QaraKino. Все права защищены.</p>
+    </footer>
+
+    <script>
+        // CONFIGURATION: Endpoints & Key
+        const REST_MOVIES_URL = 'https://kgjdxlffftiulaqwlhyg.supabase.co/rest/v1/movies';
+        const REST_COMMENTS_URL = 'https://kgjdxlffftiulaqwlhyg.supabase.co/rest/v1/comments';
+        const API_KEY = 'sb_publishable_tWzjJ-noOYaJqjRz9Om2SQ_cz7FEHHN';
+
+        // Application State
+        let currentMovies = [];
+        let favorites = new Set(JSON.parse(localStorage.getItem('qara_favs') || '[]'));
+        let localRatingsStore = JSON.parse(localStorage.getItem('qara_ratings') || '{}');
+        
+        let commentsMap = {};
+
+        let activeFilter = 'all';
+        let heroMovie = null;
+        let heroTimerInterval = null;
+        let activeMovieInPlayer = null;
+        let newMovieIds = new Set();
+        let currentQualityRes = '1080';
+
+        // Helper: Headers for API requests
+        function getApiHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation',
+                'apikey': API_KEY,
+                'Authorization': 'Bearer ' + API_KEY
+            };
+        }
+
+        // Helper to extract dedicated banner image for hero section
+        function getBannerPicture(movie) {
+            if (!movie) return '';
+            const possibleBannerFields = [
+                movie.banner_picture,
+                movie.banner_pic,
+                movie.banner,
+                movie.header_picture,
+                movie.header_pic,
+                movie.hero_picture,
+                movie.hero_pic,
+                movie.fon_picture,
+                movie.fon,
+                movie.bg_picture
+            ];
+            for (const field of possibleBannerFields) {
+                if (field && typeof field === 'string' && field.trim() !== '') {
+                    const cleaned = cleanUrl(field);
+                    if (cleaned) return cleaned;
+                }
+            }
+            // Fallback to regular movie poster/picture
+            return cleanUrl(movie.picture) || 'https://placehold.co/1200x600/111/fff?text=QaraKino';
+        }
+
+        // Fetch movies from table: movies
+        async function fetchMovies() {
+            try {
+                const url = `${REST_MOVIES_URL}?select=*&order=list_kino.asc`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getApiHeaders()
+                });
+                
+                if (!response.ok) throw new Error(`Movies API Error HTTP ${response.status}`);
+                const data = await response.json();
+                
+                if (Array.isArray(data)) {
+                    if (currentMovies.length > 0) {
+                        data.forEach(m => {
+                            const id = m.list_kino || m.id;
+                            const exists = currentMovies.some(old => (old.list_kino || old.id) === id);
+                            if (!exists) {
+                                newMovieIds.add(Number(id));
+                                showToast(`Добавлен новый фильм: "${m.name_kino || m.name}"!`);
+                            }
+                        });
+                    }
+
+                    currentMovies = data;
+                    updateUI();
+                    fetchAllComments();
+                }
+            } catch (error) {
+                console.warn('Ошибка загрузки фильмов:', error);
+            }
+        }
+
+        // Fetch comments for a specific movie
+        async function fetchCommentsForMovie(movieId) {
+            const id = Number(movieId);
+            try {
+                const url = `${REST_COMMENTS_URL}?movie_id=eq.${id}&select=*&order=created_at.desc`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getApiHeaders()
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        commentsMap[id] = data;
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn('Comments fetch error:', err);
+            }
+            return commentsMap[id] || [];
+        }
+
+        // Fetch ALL comments to compute total stars & rating counts for cards
+        async function fetchAllComments() {
+            try {
+                const url = `${REST_COMMENTS_URL}?select=movie_id,rating`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getApiHeaders()
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        const ratingSums = {};
+                        data.forEach(item => {
+                            const mId = Number(item.movie_id);
+                            if (!ratingSums[mId]) {
+                                ratingSums[mId] = { totalStars: 0, count: 0 };
+                            }
+                            ratingSums[mId].totalStars += Number(item.rating || 5);
+                            ratingSums[mId].count += 1;
+                        });
+
+                        Object.keys(ratingSums).forEach(mId => {
+                            const current = localRatingsStore[mId] || { userRating: 0 };
+                            localRatingsStore[mId] = {
+                                totalStars: ratingSums[mId].totalStars,
+                                count: ratingSums[mId].count,
+                                userRating: current.userRating || 0
+                            };
+                        });
+                        updateUI();
+                    }
+                }
+            } catch (err) {
+                console.warn('Error fetching ratings:', err);
+            }
+        }
+
+        // Send a comment (POST)
+        async function sendComment(movieId, author, text, rating) {
+            const id = Number(movieId);
+            const payload = {
+                movie_id: id,
+                username: author,
+                text: text,
+                rating: Number(rating)
+            };
+
+            try {
+                const response = await fetch(REST_COMMENTS_URL, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const inserted = await response.json();
+                    return { success: true, data: inserted };
+                } else {
+                    const errText = await response.text();
+                    return { success: false, error: errText || `HTTP ${response.status}` };
+                }
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        }
+
+        function getMovieRatingData(movieId) {
+            const id = Number(movieId);
+            const saved = localRatingsStore[id];
+            
+            if (!saved || saved.count === 0) {
+                return { avg: '5.0', count: 0, userRating: 0 };
+            }
+            const avg = (saved.totalStars / saved.count).toFixed(1);
+            return { avg: avg, count: saved.count, userRating: saved.userRating || 0 };
+        }
+
+        function cleanUrl(url) {
+            if (!url) return '';
+            const match = url.match(/\[.*?\]\((.*?)\)/);
+            return match ? match[1] : url.trim();
+        }
+
+        function extractQualityFromUrl(url) {
+            if (!url) return { res: '1080', label: '1080p Full HD' };
+            if (url.includes('2160') || url.toLowerCase().includes('4k')) {
+                return { res: '2160', label: '4K Ultra HD (2160p)' };
+            } else if (url.includes('1080')) {
+                return { res: '1080', label: '1080p Full HD' };
+            } else if (url.includes('720')) {
+                return { res: '720', label: '720p HD' };
+            } else if (url.includes('480')) {
+                return { res: '480', label: '480p SD' };
+            } else if (url.includes('360')) {
+                return { res: '360', label: '360p' };
+            }
+            return { res: '1080', label: '1080p Full HD' };
+        }
+
+        function updateUI() {
+            if (currentMovies.length > 0 && !heroMovie) {
+                // Select a random movie upon initial visit
+                const randIdx = Math.floor(Math.random() * currentMovies.length);
+                heroMovie = currentMovies[randIdx];
+                updateHeroUI(heroMovie, false);
+                startHeroAutoRotation();
+            }
+
+            let filtered = [...currentMovies];
+            
+            const searchVal = document.getElementById('searchInput')?.value.toLowerCase().trim() || '';
+            if (searchVal) {
+                filtered = filtered.filter(m => 
+                    (m.name_kino || m.name || '').toLowerCase().includes(searchVal) ||
+                    (m.discraption || m.description || '').toLowerCase().includes(searchVal) ||
+                    (m.janre || '').toLowerCase().includes(searchVal)
+                );
+            }
+
+            if (activeFilter === 'available') {
+                filtered = filtered.filter(m => m.button === true || m.button === "true");
+            } else if (activeFilter === 'favorites') {
+                filtered = filtered.filter(m => favorites.has(Number(m.list_kino || m.id)));
+            }
+
+            const totalElem = document.getElementById('totalMoviesCount');
+            if (totalElem) totalElem.innerText = filtered.length;
+
+            renderCards(filtered);
+            updateFavBadge();
+        }
+
+        function updateHeroUI(movie, smooth = false) {
+            if (!movie) return;
+            heroMovie = movie;
+
+            const heroSection = document.getElementById('heroSection');
+            const heroBg = document.getElementById('heroBg');
+            const heroTitle = document.getElementById('heroTitle');
+            const heroDesc = document.getElementById('heroDesc');
+            const heroGenre = document.getElementById('heroGenreBadge');
+            const heroQuality = document.getElementById('heroQualityBadge');
+            const heroRatingValue = document.getElementById('heroRatingValue');
+
+            const picUrl = getBannerPicture(movie);
+
+            const applyData = () => {
+                if (heroBg) heroBg.style.backgroundImage = `url('${picUrl}')`;
+                if (heroTitle) heroTitle.innerText = movie.name_kino || movie.name || '';
+                if (heroDesc) heroDesc.innerText = movie.discraption || movie.description || '';
+                if (heroGenre) heroGenre.innerText = movie.janre || 'Фильм';
+
+                const extracted = extractQualityFromUrl(cleanUrl(movie.click));
+                if (heroQuality) heroQuality.innerText = extracted.res + 'p';
+
+                const ratingData = getMovieRatingData(movie.list_kino || movie.id);
+                if (heroRatingValue) heroRatingValue.innerText = ratingData.avg;
+            };
+
+            if (smooth && heroSection) {
+                heroSection.style.opacity = '0.2';
+                setTimeout(() => {
+                    applyData();
+                    heroSection.style.opacity = '1';
+                }, 400);
+            } else {
+                applyData();
+            }
+        }
+
+        function startHeroAutoRotation() {
+            if (heroTimerInterval) return;
+            heroTimerInterval = setInterval(() => {
+                rotateHeroMovie();
+            }, 10000);
+        }
+
+        function rotateHeroMovie() {
+            if (!currentMovies || currentMovies.length === 0) return;
+            
+            let nextMovie = heroMovie;
+            if (currentMovies.length > 1) {
+                const currentId = heroMovie ? (heroMovie.list_kino || heroMovie.id) : null;
+                let attempts = 0;
+                while (attempts < 10) {
+                    const randIdx = Math.floor(Math.random() * currentMovies.length);
+                    const candidate = currentMovies[randIdx];
+                    if ((candidate.list_kino || candidate.id) !== currentId) {
+                        nextMovie = candidate;
+                        break;
+                    }
+                    attempts++;
+                }
+            } else {
+                nextMovie = currentMovies[0];
+            }
+
+            updateHeroUI(nextMovie, true);
+        }
+
+        function renderCards(movies) {
+            const grid = document.getElementById('moviesGrid');
+            const emptyState = document.getElementById('emptyState');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+
+            if (movies.length === 0) {
+                if (emptyState) emptyState.classList.remove('hidden');
+                return;
+            } else {
+                if (emptyState) emptyState.classList.add('hidden');
+            }
+
+            movies.forEach(movie => {
+                const id = Number(movie.list_kino || movie.id);
+                const isFav = favorites.has(id);
+                const isNew = newMovieIds.has(id);
+                
+                const cardHTML = createMovieCardHTML(movie, isFav, isNew);
+                grid.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        function createMovieCardHTML(movie, isFav, isNew) {
+            const id = Number(movie.list_kino || movie.id);
+            const name = movie.name_kino || movie.name || 'Без названия';
+            const desc = movie.discraption || movie.description || '';
+            const pic = cleanUrl(movie.picture) || 'https://placehold.co/400x600/111/fff?text=No+Cover';
+            const genre = movie.janre || '';
+            const qualityInfo = extractQualityFromUrl(cleanUrl(movie.click));
+            const ratingData = getMovieRatingData(id);
+
+            return `
+                <div class="snap-start flex-shrink-0 w-[220px] md:w-auto bg-brand-card rounded-2xl overflow-hidden border border-brand-border hover:border-neutral-500 transition-all duration-300 flex flex-col group ${isNew ? 'animate-new-card' : ''}">
+                    <div class="relative aspect-[2/3] overflow-hidden bg-neutral-900 cursor-pointer" onclick="openPlayer(${id})">
+                        <img src="${pic}" alt="${name}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='https://placehold.co/400x600/222/fff?text=QaraKino'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent opacity-80"></div>
+                        
+                        <div class="absolute top-2.5 left-2.5 flex flex-wrap gap-1">
+                            ${isNew ? '<span class="bg-amber-400 text-black text-[9px] font-extrabold px-2 py-0.5 rounded shadow">НОВОЕ</span>' : ''}
+                            <span class="bg-black/70 backdrop-blur-md text-white text-[9px] font-mono px-2 py-0.5 rounded border border-white/10">${qualityInfo.res}p</span>
+                            
+                            <span class="bg-black/80 backdrop-blur-md text-amber-400 text-[9px] font-mono font-bold px-2 py-0.5 rounded border border-amber-400/30 flex items-center gap-1">
+                                <i class="fa-solid fa-star text-[8px]"></i> ${ratingData.avg}
+                            </span>
+                        </div>
+
+                        <button onclick="toggleFavorite(${id}, event)" class="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:text-amber-400 transition-all">
+                            <i class="${isFav ? 'fa-solid fa-bookmark text-amber-400' : 'fa-regular fa-bookmark'} text-xs"></i>
+                        </button>
+
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+                            <div class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-2xl transform scale-90 group-hover:scale-100 transition-transform">
+                                <i class="fa-solid fa-play text-sm ml-0.5"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                        <div>
+                            ${genre ? `<div class="text-[10px] font-semibold text-neutral-400 truncate mb-0.5">${genre}</div>` : ''}
+                            <h3 class="font-bold text-sm text-white line-clamp-1 group-hover:text-neutral-200 transition-colors">${name}</h3>
+                            <p class="text-xs text-neutral-400 line-clamp-2 font-light mt-1">${desc}</p>
+                        </div>
+
+                        <div class="pt-2 border-t border-neutral-800/60 flex items-center justify-between">
+                            <button onclick="openPlayer(${id})" class="w-full py-2 bg-neutral-900 hover:bg-white hover:text-black border border-neutral-800 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-play text-[10px]"></i>
+                                <span>Смотреть</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function setupPlayerPage(movieId) {
+            const movie = currentMovies.find(m => Number(m.list_kino || m.id) === Number(movieId));
+            if (!movie) return;
+
+            activeMovieInPlayer = movie;
+
+            const titleElem = document.getElementById('playerPageMovieTitle');
+            const nameElem = document.getElementById('playerMovieName');
+            const descElem = document.getElementById('playerMovieDescription');
+            const genreElem = document.getElementById('playerMovieGenreText');
+            const idElem = document.getElementById('playerMovieIdText');
+
+            if (titleElem) titleElem.innerText = movie.name_kino || movie.name;
+            if (nameElem) nameElem.innerText = movie.name_kino || movie.name;
+            if (descElem) descElem.innerText = movie.discraption || movie.description;
+            if (genreElem) genreElem.innerText = movie.janre || 'Не указан';
+            if (idElem) idElem.innerText = `#${movie.list_kino || movie.id}`;
+
+            const clickUrl = cleanUrl(movie.click);
+            const extracted = extractQualityFromUrl(clickUrl);
+            updateQualityUI(extracted.res);
+
+            const iframe = document.getElementById('videoIframe');
+            const customContainer = document.getElementById('customVideoContainer');
+            const html5Video = document.getElementById('html5Video');
+            const externalNotice = document.getElementById('externalPlayerNotice');
+
+            if (iframe) iframe.classList.add('hidden');
+            if (customContainer) customContainer.classList.add('hidden');
+            if (externalNotice) externalNotice.classList.add('hidden');
+
+            if (clickUrl.match(/\.(mp4|webm|ogg|m3u8)(\?.*)?$/i) || clickUrl.includes('kazmovi.ru')) {
+                if (customContainer && html5Video) {
+                    customContainer.classList.remove('hidden');
+                    html5Video.src = clickUrl;
+                    html5Video.play().catch(e => console.warn('Video autoplay prevented:', e));
+                }
+            } else if (clickUrl.includes('youtube.com') || clickUrl.includes('youtu.be') || clickUrl.includes('rutube.ru') || clickUrl.includes('vk.com')) {
+                if (iframe) {
+                    iframe.classList.remove('hidden');
+                    let embedUrl = clickUrl;
+                    if (clickUrl.includes('youtube.com/watch?v=')) {
+                        embedUrl = clickUrl.replace('watch?v=', 'embed/') + '?autoplay=1';
+                    } else if (clickUrl.includes('youtu.be/')) {
+                        embedUrl = clickUrl.replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=1';
+                    }
+                    iframe.src = embedUrl;
+                }
+            } else {
+                if (externalNotice) {
+                    externalNotice.classList.remove('hidden');
+                    const extBtn = document.getElementById('externalPlayerBtn');
+                    if (extBtn) extBtn.href = clickUrl;
+                }
+            }
+
+            await loadAndRenderComments(movie.list_kino || movie.id);
+            renderSimilarMovies(movie);
+        }
+
+        async function loadAndRenderComments(movieId) {
+            const listContainer = document.getElementById('commentsList');
+            const badge = document.getElementById('commentsCountBadge');
+            if (!listContainer) return;
+
+            listContainer.innerHTML = `
+                <div class="text-center py-6 text-neutral-400 text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner animate-spin text-emerald-400"></i>
+                    <span>Загрузка отзывов...</span>
+                </div>
+            `;
+
+            const comments = await fetchCommentsForMovie(movieId);
+            
+            if (badge) badge.innerText = comments.length;
+
+            if (comments.length > 0) {
+                const totalStars = comments.reduce((sum, item) => sum + (Number(item.rating) || 5), 0);
+                const currentRating = localRatingsStore[movieId] || { userRating: 0 };
+                localRatingsStore[movieId] = {
+                    totalStars: totalStars,
+                    count: comments.length,
+                    userRating: currentRating.userRating
+                };
+            }
+            updatePlayerRatingUI(movieId);
+
+            listContainer.innerHTML = '';
+
+            if (comments.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-8 text-neutral-500 text-xs space-y-1">
+                        <i class="fa-solid fa-comment-dots text-xl text-neutral-600 block mb-2"></i>
+                        <p class="font-semibold text-neutral-400">Комментариев пока нет</p>
+                        <p class="text-[11px]">Оставьте первый отзыв к этому фильму выше!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            comments.forEach(c => {
+                const authorName = c.username || 'Аноним';
+                const ratingNum = Number(c.rating || 5);
+                const commentText = c.text || '';
+                
+                let dateStr = 'Только что';
+                if (c.created_at) {
+                    try {
+                        dateStr = new Date(c.created_at).toLocaleDateString('ru-RU', { 
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                        });
+                    } catch(e){}
+                }
+
+                let starsHTML = '';
+                for (let i = 1; i <= 5; i++) {
+                    starsHTML += i <= ratingNum 
+                        ? '<i class="fa-solid fa-star text-amber-400"></i>' 
+                        : '<i class="fa-regular fa-star text-neutral-600"></i>';
+                }
+
+                const html = `
+                    <div class="bg-neutral-900/60 p-4 rounded-xl border border-neutral-800 space-y-2 hover:border-neutral-700 transition-colors">
+                        <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center font-bold text-xs text-amber-400">
+                                    ${escapeHtml(authorName.charAt(0).toUpperCase())}
+                                </div>
+                                <div>
+                                    <span class="font-bold text-white block">${escapeHtml(authorName)}</span>
+                                    <div class="flex items-center gap-0.5 text-[10px] mt-0.5">${starsHTML}</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] text-neutral-500 font-mono">${dateStr}</span>
+                        </div>
+                        <p class="text-xs text-neutral-300 font-light leading-relaxed pl-9">${escapeHtml(commentText)}</p>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        async function refreshCurrentComments() {
+            if (activeMovieInPlayer) {
+                const id = activeMovieInPlayer.list_kino || activeMovieInPlayer.id;
+                await loadAndRenderComments(id);
+                showToast("Список отзывов обновлен!");
+            }
+        }
+
+        async function handleCommentSubmit(event) {
+            event.preventDefault();
+            if (!activeMovieInPlayer) return;
+
+            const id = Number(activeMovieInPlayer.list_kino || activeMovieInPlayer.id);
+            const authorInput = document.getElementById('commentAuthor');
+            const textInput = document.getElementById('commentText');
+            const ratingSelect = document.getElementById('commentRating');
+            const statusElem = document.getElementById('submitStatusText');
+            const submitBtn = document.getElementById('submitCommentBtn');
+
+            const author = authorInput.value.trim();
+            const text = textInput.value.trim();
+            const rating = parseInt(ratingSelect.value, 10);
+
+            if (!author || !text) return;
+
+            if (statusElem) statusElem.innerText = 'Отправка...';
+            if (submitBtn) submitBtn.disabled = true;
+
+            const result = await sendComment(id, author, text, rating);
+
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (result.success) {
+                textInput.value = '';
+                if (statusElem) statusElem.innerText = 'Опубликовано!';
+                showToast('Комментарий сохранен!');
+                await loadAndRenderComments(id);
+                setTimeout(() => { if (statusElem) statusElem.innerText = ''; }, 3000);
+            } else {
+                console.error("Error:", result.error);
+                if (statusElem) statusElem.innerText = 'Ошибка отправки';
+                showToast(`Ошибка отправки: ${result.error}`);
+            }
+        }
+
+        function updatePlayerRatingUI(movieId) {
+            const data = getMovieRatingData(movieId);
+            const avgElem = document.getElementById('playerAvgRating');
+            const countElem = document.getElementById('playerRatingCount');
+            const statusElem = document.getElementById('userRatingStatus');
+
+            if (avgElem) avgElem.innerText = data.avg;
+            if (countElem) countElem.innerText = data.count;
+
+            renderUserStarPicker(data.userRating);
+
+            if (statusElem) {
+                if (data.userRating > 0) {
+                    statusElem.innerText = `(Оценено: ${data.userRating} ★)`;
+                } else {
+                    statusElem.innerText = '';
+                }
+            }
+        }
+
+        function renderUserStarPicker(userRating) {
+            const picker = document.getElementById('userStarPicker');
+            if (!picker) return;
+
+            const stars = picker.querySelectorAll('i');
+            stars.forEach((star, index) => {
+                if (index < userRating) {
+                    star.className = 'fa-solid fa-star text-amber-400 hover:text-amber-300';
+                } else {
+                    star.className = 'fa-solid fa-star text-neutral-600 hover:text-amber-400';
+                }
+            });
+        }
+
+        function rateMovie(stars) {
+            if (!activeMovieInPlayer) return;
+            const id = Number(activeMovieInPlayer.list_kino || activeMovieInPlayer.id);
+
+            const current = localRatingsStore[id] || { totalStars: 5, count: 1, userRating: 0 };
+            
+            if (current.userRating > 0) {
+                current.totalStars = current.totalStars - current.userRating + stars;
+            } else {
+                current.totalStars += stars;
+                current.count += 1;
+            }
+            current.userRating = stars;
+
+            localRatingsStore[id] = current;
+            localStorage.setItem('qara_ratings', JSON.stringify(localRatingsStore));
+
+            updatePlayerRatingUI(id);
+            updateUI();
+            showToast(`Вы поставили ${stars} из 5 ★`);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderSimilarMovies(currentMovie) {
+            const container = document.getElementById('similarMoviesGrid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const currentGenre = (currentMovie.janre || '').toLowerCase();
+            const currentId = Number(currentMovie.list_kino || currentMovie.id);
+
+            let genreTokens = currentGenre.split(',').map(g => g.trim()).filter(Boolean);
+
+            let similar = currentMovies.filter(m => {
+                const id = Number(m.list_kino || m.id);
+                if (id === currentId) return false;
+
+                const mGenre = (m.janre || '').toLowerCase();
+                return genreTokens.some(token => mGenre.includes(token));
+            });
+
+            if (similar.length === 0) {
+                similar = currentMovies.filter(m => Number(m.list_kino || m.id) !== currentId).slice(0, 5);
+            } else {
+                similar = similar.slice(0, 5);
+            }
+
+            similar.forEach(m => {
+                const cardHTML = createMovieCardHTML(m, favorites.has(Number(m.list_kino || m.id)), false);
+                container.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        function toggleQualityMenu(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('qualityDropdown');
+            if (dropdown) dropdown.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('qualityDropdown');
+            const btn = document.getElementById('qualityMenuBtn');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                if (!dropdown.contains(e.target) && !btn?.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            }
+        });
+
+        function updateQualityUI(res) {
+            currentQualityRes = res;
+            const badge = document.getElementById('currentQualityBadge');
+            const qualityText = document.getElementById('playerMovieQualityText');
+            if (badge) badge.innerText = `${res}p`;
+            if (qualityText) qualityText.innerText = `${res}p ${res === '1080' ? 'Full HD' : (res === '2160' ? '4K Ultra HD' : 'HD')}`;
+
+            ['1080', '720', '480'].forEach(r => {
+                const check = document.getElementById(`check${r}`);
+                if (check) {
+                    if (r === res) check.classList.remove('hidden');
+                    else check.classList.add('hidden');
+                }
+            });
+        }
+
+        function changeVideoQuality(newRes) {
+            const video = document.getElementById('html5Video');
+            const dropdown = document.getElementById('qualityDropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+
+            if (!video || !activeMovieInPlayer) return;
+
+            const clickUrl = cleanUrl(activeMovieInPlayer.click);
+            if (!clickUrl) return;
+
+            const curTime = video.currentTime || 0;
+            const wasPaused = video.paused;
+
+            let newUrl = clickUrl;
+            if (clickUrl.match(/(1080|720|480|360|2160)/)) {
+                newUrl = clickUrl.replace(/(1080|720|480|360|2160)/, newRes);
+            }
+
+            video.src = newUrl;
+            video.currentTime = curTime;
+            updateQualityUI(newRes);
+
+            if (!wasPaused) {
+                video.play().catch(e => console.warn("Quality switch play error:", e));
+            }
+        }
+
+        function initVideoPlayerControls() {
+            const video = document.getElementById('html5Video');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const playIcon = document.getElementById('playIcon');
+            const seekBar = document.getElementById('seekBar');
+            const timeDisplay = document.getElementById('timeDisplay');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumeIcon = document.getElementById('volumeIcon');
+            const speed2xBadge = document.getElementById('speed2xBadge');
+            const rightHoldZone = document.getElementById('rightSideHoldZone');
+
+            if (!video) return;
+
+            window.togglePlayPause = function() {
+                if (video.paused) {
+                    video.play().catch(e => console.warn(e));
+                } else {
+                    video.pause();
+                }
+            };
+
+            video.addEventListener('play', () => {
+                if (playIcon) playIcon.className = 'fa-solid fa-pause text-base';
+            });
+
+            video.addEventListener('pause', () => {
+                if (playIcon) playIcon.className = 'fa-solid fa-play text-base';
+            });
+
+            video.addEventListener('timeupdate', () => {
+                if (seekBar && video.duration) {
+                    seekBar.value = (video.currentTime / video.duration) * 100;
+                }
+                if (timeDisplay) {
+                    timeDisplay.innerText = `${formatTime(video.currentTime)} / ${formatTime(video.duration || 0)}`;
+                }
+            });
+
+            if (seekBar) {
+                seekBar.addEventListener('input', () => {
+                    if (video.duration) {
+                        video.currentTime = (seekBar.value / 100) * video.duration;
+                    }
+                });
+            }
+
+            if (volumeSlider) {
+                volumeSlider.addEventListener('input', (e) => {
+                    video.volume = e.target.value;
+                    video.muted = (video.volume === 0);
+                    updateVolumeIcon();
+                });
+            }
+
+            window.toggleMute = function() {
+                video.muted = !video.muted;
+                updateVolumeIcon();
+            };
+
+            function updateVolumeIcon() {
+                if (!volumeIcon) return;
+                if (video.muted || video.volume === 0) {
+                    volumeIcon.className = 'fa-solid fa-volume-xmark text-xs text-red-400';
+                } else if (video.volume < 0.5) {
+                    volumeIcon.className = 'fa-solid fa-volume-low text-xs';
+                } else {
+                    volumeIcon.className = 'fa-solid fa-volume-high text-xs';
+                }
+            }
+
+            window.changePlaybackSpeed = function(speed) {
+                video.playbackRate = parseFloat(speed);
+            };
+
+            window.skipTime = function(seconds) {
+                video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+            };
+
+            let originalRate = 1.0;
+
+            function start2xHold() {
+                originalRate = video.playbackRate;
+                video.playbackRate = 2.0;
+                if (speed2xBadge) speed2xBadge.classList.remove('hidden');
+            }
+
+            function stop2xHold() {
+                video.playbackRate = originalRate;
+                if (speed2xBadge) speed2xBadge.classList.add('hidden');
+            }
+
+            if (rightHoldZone) {
+                rightHoldZone.addEventListener('mousedown', start2xHold);
+                rightHoldZone.addEventListener('mouseup', stop2xHold);
+                rightHoldZone.addEventListener('mouseleave', stop2xHold);
+                rightHoldZone.addEventListener('touchstart', (e) => { e.preventDefault(); start2xHold(); });
+                rightHoldZone.addEventListener('touchend', stop2xHold);
+            }
+
+            let spaceTimer = null;
+            let isHoldingSpace = false;
+
+            document.addEventListener('keydown', (e) => {
+                const playerView = document.getElementById('playerView');
+                if (playerView.classList.contains('hidden')) return;
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (!isHoldingSpace) {
+                        isHoldingSpace = true;
+                        spaceTimer = setTimeout(() => {
+                            start2xHold();
+                        }, 200);
+                    }
+                } else if (e.code === 'ArrowRight') {
+                    e.preventDefault();
+                    skipTime(10);
+                } else if (e.code === 'ArrowLeft') {
+                    e.preventDefault();
+                    skipTime(-10);
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    clearTimeout(spaceTimer);
+                    if (video.playbackRate === 2.0) {
+                        stop2xHold();
+                    } else {
+                        togglePlayPause();
+                    }
+                    isHoldingSpace = false;
+                }
+            });
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '00:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function toggleCustomFullscreen() {
+            const container = document.getElementById('customVideoContainer');
+            if (!container) return;
+
+            try {
+                if (!document.fullscreenElement) {
+                    if (container.requestFullscreen) container.requestFullscreen();
+                    else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            } catch (err) {
+                showToast("Полноэкранный режим не поддерживается.");
+            }
+        }
+
+        function openPlayer(movieId) {
+            window.location.hash = `#player?id=${movieId}`;
+        }
+
+        function playCurrentHero() {
+            if (heroMovie) {
+                openPlayer(heroMovie.list_kino || heroMovie.id);
+            }
+        }
+
+        function openHeroDetails() {
+            if (heroMovie) {
+                openPlayer(heroMovie.list_kino || heroMovie.id);
+            }
+        }
+
+        function toggleFavorite(movieId, event) {
+            if (event) event.stopPropagation();
+            const id = Number(movieId);
+            if (favorites.has(id)) {
+                favorites.delete(id);
+                showToast("Удалено из Избранного");
+            } else {
+                favorites.add(id);
+                showToast("Добавлено в Избранное!");
+            }
+            localStorage.setItem('qara_favs', JSON.stringify([...favorites]));
+            updateUI();
+        }
+
+        function filterByFavorites() {
+            setFilter('favorites');
+        }
+
+        function setFilter(filterType) {
+            activeFilter = filterType;
+            
+            document.querySelectorAll('.filter-tab').forEach(btn => {
+                btn.className = 'filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800 transition-all whitespace-nowrap';
+            });
+
+            if (filterType === 'all') {
+                document.getElementById('filterBtnAll').className = 'filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-black transition-all whitespace-nowrap';
+            } else if (filterType === 'available') {
+                document.getElementById('filterBtnAvail').className = 'filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-black transition-all whitespace-nowrap';
+            } else if (filterType === 'favorites') {
+                document.getElementById('filterBtnFav').className = 'filter-tab px-4 py-1.5 rounded-lg text-xs font-semibold bg-white text-black transition-all whitespace-nowrap';
+            }
+
+            updateUI();
+        }
+
+        function updateFavBadge() {
+            const badge = document.getElementById('favCountBadge');
+            if (badge) badge.innerText = favorites.size;
+        }
+
+        function onSearchInput(val) {
+            updateUI();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            const toastText = document.getElementById('toastText');
+            if (!toast || !toastText) return;
+
+            toastText.innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function handleRoute() {
+            const hash = window.location.hash || '#catalog';
+            const catalogView = document.getElementById('catalogView');
+            const playerView = document.getElementById('playerView');
+            const html5Video = document.getElementById('html5Video');
+            const iframe = document.getElementById('videoIframe');
+
+            if (hash.startsWith('#player')) {
+                const urlParams = new URLSearchParams(hash.split('?')[1]);
+                const movieId = urlParams.get('id');
+
+                if (catalogView) catalogView.classList.add('hidden');
+                if (playerView) playerView.classList.remove('hidden');
+                
+                setupPlayerPage(movieId);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                if (playerView) playerView.classList.add('hidden');
+                if (catalogView) catalogView.classList.remove('hidden');
+
+                if (html5Video) {
+                    html5Video.pause();
+                    html5Video.src = '';
+                }
+                if (iframe) iframe.src = '';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initVideoPlayerControls();
+            fetchMovies();
+            handleRoute();
+
+            setInterval(fetchMovies, 30000);
+        });
+
+        window.addEventListener('hashchange', handleRoute);
+    </script>
+</body>
+</html>
